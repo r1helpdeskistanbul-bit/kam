@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KAM · Mikrolink R1 NOC</title>
+<meta name="theme-color" content="#0e1116">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 4l24 14v28L32 60 8 46V18z' fill='%230b0d12' stroke='%23ff3341' stroke-width='4'/%3E%3Cpath d='M24 18v28M24 32l14-14M28 29l12 17' stroke='%23ff3341' stroke-width='5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  html,body{margin:0;height:100%;background:#0e1116;overflow:hidden}
+  iframe{position:fixed;inset:0;width:100%;height:100%;border:0;display:block}
+</style>
+</head>
+<body>
+<!-- KAM kabuğu: Apps Script uygulamasını tam ekran içine alır, Google'ın üstteki uyarı şeridi bu sayfada görünmez. -->
+
+<iframe id="kam" allow="microphone; autoplay; fullscreen; clipboard-read; clipboard-write" allowfullscreen></iframe>
+<script>
+  var KAM_URL = 'https://script.google.com/macros/s/AKfycbzl5qoVwikiVvsv-vfm6tn4ZpSh0o55Z9rBKeuD4zfvL8JLJ8qP_zMmkAAAGuTmBRg5/exec';
+  // ?site=K3294 gibi linkler aynen uygulamaya geçsin
+  document.getElementById('kam').src = KAM_URL + location.search;
+</script>
+</body>
+</html>
