@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KAM · Mikrolink R1 NOC</title>
+<meta name="theme-color" content="#0e1116">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 4l24 14v28L32 60 8 46V18z' fill='%230b0d12' stroke='%23ff3341' stroke-width='4'/%3E%3Cpath d='M24 18v28M24 32l14-14M28 29l12 17' stroke='%23ff3341' stroke-width='5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  html,body{margin:0;height:100%;background:#0e1116;overflow:hidden}
+  iframe{position:fixed;inset:0;width:100%;height:100%;border:0;display:block}
+</style>
+</head>
+<body>
+<!-- KAM kabuğu: Apps Script uygulamasını tam ekran içine alır, Google'ın üstteki uyarı şeridi bu sayfada görünmez. -->
+
+<iframe id="kam" allow="microphone; autoplay; fullscreen; clipboard-read; clipboard-write" allowfullscreen></iframe>
+<script>
+  var KAM_URL = 'https://script.google.com/macros/s/AKfycbzl5qoVwikiVvsv-vfm6tn4ZpSh0o55Z9rBKeuD4zfvL8JLJ8qP_zMmkAAAGuTmBRg5/exec';
+  // ?site=K3294 gibi linkler aynen uygulamaya geçsin
+  document.getElementById('kam').src = KAM_URL + location.search;
+
+  // Ses köprüsü: Google'ın iç çerçevesi mikrofonu engellediği için tanımayı bu sayfa yapar, metni KAM'a yollar.
+  // tek: bas-konuş komutu · surekli: "KAM" uyandırma kelimesi için arka planda dinleme
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition, rec = null, mod = '', uyan = false, hedef = null, tekBekle = false, lang = 'tr-TR';
+  var okKaynak = function(o){ return /^https:\/\/[a-z0-9-]+-script\.googleusercontent\.com$/i.test(o); };
+  var yolla = function(x){ if (!hedef) return; x.kam = 'sr'; try { hedef.w.postMessage(x, hedef.o); } catch(e) {} };
+  function surekliBasla(){
+    if (!SR || !uyan || rec) return;
+    var r = new SR(); rec = r; mod = 'surekli'; r.lang = lang; r.continuous = true; r.interimResults = false; r.maxAlternatives = 1;
+    r.onresult = function(ev){ for (var i = ev.resultIndex; i < ev.results.length; i++) if (ev.results[i].isFinal) yolla({ t: 'surekli', text: ev.results[i][0].transcript }); };
+    r.onerror = function(ev){ if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') { uyan = false; yolla({ t: 'uhata', err: 'not-allowed' }); } };
+    r.onend = function(){ rec = null; mod = ''; if (tekBekle) { tekBekle = false; tekBasla(); } else if (uyan) setTimeout(surekliBasla, 400); };
+    try { r.start(); } catch(x) { rec = null; mod = ''; }
+  }
+  function tekBasla(){
+    if (!SR) { yolla({ t: 'error', err: 'desteklenmiyor' }); yolla({ t: 'end' }); return; }
+    if (rec) { if (mod === 'surekli') { tekBekle = true; try { rec.abort(); } catch(x) {} return; } try { rec.abort(); } catch(x) {} }
+    var r = new SR(); rec = r; mod = 'tek'; r.lang = lang; r.interimResults = true; r.maxAlternatives = 1;
+    r.onstart = function(){ yolla({ t: 'start' }); };
+    r.onresult = function(ev){ var t = ''; for (var i = 0; i < ev.results.length; i++) t += ev.results[i][0].transcript; yolla({ t: 'result', text: t, fin: ev.results[ev.results.length - 1].isFinal }); };
+    r.onerror = function(ev){ yolla({ t: 'error', err: ev.error }); };
+    r.onend = function(){ rec = null; mod = ''; yolla({ t: 'end' }); if (uyan) setTimeout(surekliBasla, 400); };
+    try { r.start(); } catch(x) { rec = null; mod = ''; yolla({ t: 'error', err: 'baslamadi' }); yolla({ t: 'end' }); }
+  }
+  // oda ekranı: tam ekran + ekran uykuya geçmesin
+  var kilit = null;
+  function uyanikTut(){ try { if (navigator.wakeLock && !kilit) navigator.wakeLock.request('screen').then(function(l){ kilit = l; l.addEventListener('release', function(){ kilit = null; }); }).catch(function(){}); } catch(x) {} }
+  document.addEventListener('visibilitychange', function(){ if (document.visibilityState === 'visible' && tamAcik) uyanikTut(); });
+  var tamAcik = false;
+  window.addEventListener('message', function(e){
+    var m = e.data; if (!m || !m.kam || !okKaynak(e.origin)) return;
+    hedef = { w: e.source, o: e.origin };
+    if (m.kam === 'ping') { e.source.postMessage({ kam: 'pong', sr: !!SR }, e.origin); return; }
+    if (m.lang) lang = m.lang;
+    if (m.kam === 'dinle') return tekBasla();
+    if (m.kam === 'dur') { if (rec && mod === 'tek') rec.stop(); return; }
+    if (m.kam === 'uyan') { uyan = !!m.on && !!SR; if (uyan) surekliBasla(); else if (rec && mod === 'surekli') { try { rec.abort(); } catch(x) {} } return; }
+    if (m.kam === 'tam') {
+      tamAcik = !!m.on;
+      if (m.on) { uyanikTut(); var f = document.getElementById('kam'); try { if (!document.fullscreenElement && f.requestFullscreen) f.requestFullscreen().catch(function(){}); } catch(x) {} }
+      else { if (kilit) { try { kilit.release(); } catch(x) {} kilit = null; } try { if (document.fullscreenElement) document.exitFullscreen(); } catch(x) {} }
+    }
+  });
+</script>
+</body>
+</html>
