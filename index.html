@@ -12,13 +12,29 @@
 </style>
 </head>
 <body>
-<!-- KAM kabuğu: Apps Script uygulamasını tam ekran içine alır, Google'ın üstteki uyarı şeridi bu sayfada görünmez. -->
-
 <iframe id="kam" allow="microphone; autoplay; fullscreen; clipboard-read; clipboard-write" allowfullscreen></iframe>
 <script>
   var KAM_URL = 'https://script.google.com/macros/s/AKfycbzl5qoVwikiVvsv-vfm6tn4ZpSh0o55Z9rBKeuD4zfvL8JLJ8qP_zMmkAAAGuTmBRg5/exec';
-  // ?site=K3294 gibi linkler aynen uygulamaya geçsin
   document.getElementById('kam').src = KAM_URL + location.search;
+
+  // Sesli komut köprüsü: Google'ın iç çerçevesi mikrofonu engellediği için tanımayı bu sayfa yapar, metni KAM'a yollar.
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition, rec = null;
+  var okKaynak = function(o){ return /^https:\/\/[a-z0-9-]+-script\.googleusercontent\.com$/i.test(o); };
+  window.addEventListener('message', function(e){
+    var m = e.data; if (!m || !m.kam || !okKaynak(e.origin)) return;
+    var cevap = function(x){ x.kam = 'sr'; e.source.postMessage(x, e.origin); };
+    if (m.kam === 'ping') { e.source.postMessage({ kam: 'pong', sr: !!SR }, e.origin); return; }
+    if (m.kam === 'dur') { if (rec) rec.stop(); return; }
+    if (m.kam !== 'dinle') return;
+    if (!SR) { cevap({ t: 'error', err: 'desteklenmiyor' }); cevap({ t: 'end' }); return; }
+    if (rec) { try { rec.abort(); } catch(x) {} }
+    rec = new SR(); rec.lang = m.lang || 'tr-TR'; rec.interimResults = true; rec.maxAlternatives = 1;
+    rec.onstart = function(){ cevap({ t: 'start' }); };
+    rec.onresult = function(ev){ var t = ''; for (var i = 0; i < ev.results.length; i++) t += ev.results[i][0].transcript; cevap({ t: 'result', text: t, fin: ev.results[ev.results.length - 1].isFinal }); };
+    rec.onerror = function(ev){ cevap({ t: 'error', err: ev.error }); };
+    rec.onend = function(){ rec = null; cevap({ t: 'end' }); };
+    try { rec.start(); } catch(x) { cevap({ t: 'error', err: 'baslamadi' }); cevap({ t: 'end' }); }
+  });
 </script>
 </body>
 </html>
